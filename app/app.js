@@ -125,7 +125,7 @@
           pid: 1000 + i * 37 + Math.floor(Math.random() * 9),
           name: name,
           cpu: cpu,
-          mem: clamp(gauss(320 - i * 18, 90), 12, 4096)
+          mem: clamp(gauss(320 - i * 18, 90), 12, 4096) * 1024 * 1024 /* bytes */
         };
       });
       return Promise.resolve({
@@ -397,9 +397,9 @@
     ctx.lineJoin = 'round';
     ctx.stroke();
 
-    /* live dot */
+    /* live dot (clamped so it never clips at the right edge) */
     var lastV = data[data.length - 1];
-    var lx = lastX;
+    var lx = Math.min(lastX, w - 5);
     var ly = pad + (1 - clamp(lastV, 0, 100) / 100) * (h - pad * 2);
     ctx.beginPath();
     ctx.arc(lx, ly, 3.5, 0, Math.PI * 2);
