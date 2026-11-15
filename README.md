@@ -1,5 +1,8 @@
 # ServicePulse — System Services Monitor
 
+**Downloads (Windows installer, Android APK, all source zips):** https://servicepulse-downloads.pplx.app
+**Live demo:** https://servicepulse-app.pplx.app
+
 A cross-platform system monitoring app built from **one shared web codebase** (`app/`), packaged for:
 
 | Target | Shell | Data source |

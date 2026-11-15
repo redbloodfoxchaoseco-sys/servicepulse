@@ -11,3 +11,8 @@ electron/dist/
 .DS_Store
 backend/data/
 installer/*.exe
+nativebridge/node_modules/
+nativebridge/android/.gradle/
+nativebridge/android/app/build/
+nativebridge/android/build/
+nativebridge/android/local.properties
