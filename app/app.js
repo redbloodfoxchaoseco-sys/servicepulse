@@ -382,7 +382,7 @@
     ctx.lineTo(lastX, h);
     ctx.lineTo(x0, h);
     ctx.closePath();
-    ctx.fillStyle = 'rgba(62, 207, 158, 0.10)';
+    ctx.fillStyle = css.getPropertyValue('--chart-fill').trim() || 'rgba(62, 207, 158, 0.10)';
     ctx.fill();
 
     /* line */
@@ -405,6 +405,34 @@
     ctx.arc(lx, ly, 3.5, 0, Math.PI * 2);
     ctx.fillStyle = accent;
     ctx.fill();
+  }
+
+  /* ---------------- theme toggle ---------------- */
+
+  var SUN_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" /></svg>';
+  var MOON_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></svg>';
+
+  function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    var btn = el('theme-btn');
+    btn.innerHTML = theme === 'dark' ? SUN_ICON : MOON_ICON;
+    btn.setAttribute('aria-label', 'Switch to ' + (theme === 'dark' ? 'light' : 'dark') + ' mode');
+    btn.title = 'Switch to ' + (theme === 'dark' ? 'light' : 'dark') + ' mode';
+  }
+
+  function initTheme() {
+    var theme = 'dark';
+    try {
+      theme = window.localStorage.getItem('sp-theme') ||
+        (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+    } catch (e) { /* storage unavailable (sandboxed iframe) — keep default */ }
+    applyTheme(theme);
+    el('theme-btn').addEventListener('click', function () {
+      theme = theme === 'dark' ? 'light' : 'dark';
+      applyTheme(theme);
+      try { window.localStorage.setItem('sp-theme', theme); } catch (e) { /* ignore */ }
+      drawChart();
+    });
   }
 
   /* ---------------- polling loop ---------------- */
@@ -434,6 +462,7 @@
     if (!state.provider) state.provider = demoProvider;
 
     capacitorProvider.refresh = tick;
+    initTheme();
 
     /* controls */
     el('pause-btn').addEventListener('click', function () {
