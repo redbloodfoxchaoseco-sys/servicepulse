@@ -122,3 +122,5 @@ jobs:
             osv-report.json
             npm-summary.md
           if-no-files-found: ignore
+
+# reindex: v2

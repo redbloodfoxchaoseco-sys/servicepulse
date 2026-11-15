@@ -86,3 +86,5 @@ jobs:
             --body "The weekly maintenance workflow failed. Copilot: please investigate the failing step in the workflow run, fix the root cause following the protocols in MAINTENANCE.md, and open a pull request." \
             --assignee copilot-swe-agent \
             --label maintenance
+
+# reindex: v2
