@@ -1,9 +1,10 @@
 # Weekly security audit against certified vulnerability databases.
 #
 # Data sources:
-#   - npm audit  -> GitHub Advisory Database (CVEs + GitHub Security Advisories)
+#   - npm audit   -> GitHub Advisory Database (CVEs + GitHub Security Advisories)
 #   - osv-scanner -> OSV.dev (Google's open vulnerability database, aggregates
-#                    CVE/NVD, GHSA, PyPA, Go and more)
+#                    CVE/NVD, GHSA, PyPA, Go and more) via the official
+#                    google/osv-scanner-action reusable workflow
 #
 # If vulnerabilities are found, a GitHub issue is created and assigned to the
 # GitHub Copilot coding agent, which drafts a fix as a pull request.
@@ -20,8 +21,11 @@ permissions:
   issues: write
 
 jobs:
-  audit:
+  # --- npm audit against the GitHub Advisory Database ----------------------
+  npm-audit:
     runs-on: ubuntu-latest
+    outputs:
+      found: ${{ steps.findings.outputs.found }}
     steps:
       - uses: actions/checkout@v4
 
@@ -29,7 +33,6 @@ jobs:
         with:
           node-version: 20
 
-      # --- npm audit (GitHub Advisory Database) -----------------------------
       - name: Audit Electron dependencies
         working-directory: electron
         run: npm audit --audit-level=high --json > "$GITHUB_WORKSPACE/audit-electron.json" || true
@@ -56,49 +59,54 @@ jobs:
           '
           cat npm-summary.md
 
-      # --- OSV scan (OSV.dev) ------------------------------------------------
-      - name: OSV scan (OSV.dev)
-        uses: google/osv-scanner-action@v2.7.1
-        with:
-          scan-args: |-
-            -r
-            --format=json
-            --output=osv-report.json
-            ./
-        continue-on-error: true
-
-      # --- Escalate to Copilot if anything was found -------------------------
       - name: Check findings
         id: findings
         run: |
           FOUND=0
           grep -qE '[1-9][0-9]* vulnerabilit' npm-summary.md && FOUND=1
-          if [ -f osv-report.json ]; then
-            # any non-empty results array means at least one known vulnerability
-            node -e 'const r=require("./osv-report.json"); process.exit((r.results||[]).length?1:0)' || FOUND=1
-          fi
           echo "found=$FOUND" >> "$GITHUB_OUTPUT"
 
+      - name: Upload npm audit reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-audit-reports
+          path: |
+            audit-electron.json
+            audit-android.json
+            npm-summary.md
+          if-no-files-found: ignore
+
+  # --- OSV scan via the official reusable workflow --------------------------
+  osv-scan:
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v2.7.1
+    with:
+      scan-args: |-
+        -r
+        ./
+      fail-on-vuln: true
+      upload-sarif: false
+
+  # --- Escalate to the Copilot coding agent if anything was found -----------
+  escalate:
+    needs: [npm-audit, osv-scan]
+    if: always() && (needs.npm-audit.outputs.found == '1' || needs.osv-scan.result == 'failure')
+    runs-on: ubuntu-latest
+    steps:
       - name: Open issue for Copilot coding agent
-        if: steps.findings.outputs.found == '1'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           {
             echo "## Weekly security audit found vulnerabilities"
             echo
             echo "Certified databases consulted: **GitHub Advisory Database** (npm audit) and **OSV.dev** (osv-scanner)."
             echo
-            echo "### npm audit summary"
+            echo "Workflow run: ${RUN_URL}"
             echo
-            cat npm-summary.md
-            echo
-            echo "### Full reports"
-            echo
-            echo "- npm audit (electron): \`${GITHUB_WORKSPACE}/audit-electron.json\` (workflow artifact)"
-            echo "- npm audit (android): \`${GITHUB_WORKSPACE}/audit-android.json\` (workflow artifact)"
-            echo "- OSV.dev report: \`osv-report.json\` (workflow artifact)"
+            echo "Full reports are attached to the workflow run as artifacts."
             echo
             echo "### Requested protocol"
             echo
@@ -110,17 +118,3 @@ jobs:
             --body-file issue-body.md \
             --assignee copilot-swe-agent \
             --label security
-
-      - name: Upload reports
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: security-reports
-          path: |
-            audit-electron.json
-            audit-android.json
-            osv-report.json
-            npm-summary.md
-          if-no-files-found: ignore
-
-# reindex: v2
