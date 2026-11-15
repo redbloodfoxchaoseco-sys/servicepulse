@@ -10,3 +10,4 @@ electron/dist/
 *.log
 .DS_Store
 backend/data/
+installer/*.exe

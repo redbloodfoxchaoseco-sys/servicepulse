@@ -109,3 +109,29 @@ Download `ServicePulse-debug.apk` from the
 enable "Install unknown apps" for your browser, and install. The APK is signed with
 the debug key; a release-signed build requires your own keystore (`android/android/`
 gradle `assembleRelease`).
+
+## Windows installer (Metro UI)
+
+`installer/` contains an NSIS-based Windows installer with a Metro-style UI
+(flat Metro-blue banner, Segoe UI, white surfaces, accent progress bar).
+
+- **Build:** `bash installer/build.sh` (needs `makensis` + the Electron win32 zip)
+- **Output:** `installer/ServicePulse-Setup-1.0.0.exe` (~111 MB, LZMA)
+- Installs per-user to `%LOCALAPPDATA%\Programs\ServicePulse` — **no admin rights**
+- Start-menu + desktop shortcuts, full uninstaller, Add/Remove Programs entry
+
+### Windows requirements — nothing to install
+
+ServicePulse is **fully self-contained**. Unlike classic .NET apps there is
+**no .NET Framework (3.5 or any other version), no Visual C++ Redistributable,
+and no other runtime** to install: the app bundles its own Chromium browser,
+Node.js runtime and V8 engine inside the setup (the same files as the official
+Electron win32 distribution). Works on any 64-bit Windows 10/11 machine.
+
+### Android requirements — everything in the APK
+
+The APK (`com.servicepulse.app`, ~3.7 MB) bundles the Capacitor runtime, all
+plugins and the entire web UI. It runs on **Android 5.1 (API 22) or newer**,
+uses only the `INTERNET` and `ACCESS_NETWORK_STATE` permissions, and renders
+via the built-in Android System WebView. No Google account, no backend and no
+services are required — telemetry sync is optional and configured in-app.
