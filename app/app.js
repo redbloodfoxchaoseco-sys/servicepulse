@@ -421,16 +421,15 @@
   }
 
   function initTheme() {
+    /* In-memory preference; initial value follows the system color scheme. */
     var theme = 'dark';
     try {
-      theme = window.localStorage.getItem('sp-theme') ||
-        (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
-    } catch (e) { /* storage unavailable (sandboxed iframe) — keep default */ }
+      if (window.matchMedia('(prefers-color-scheme: light)').matches) theme = 'light';
+    } catch (e) { /* keep default */ }
     applyTheme(theme);
     el('theme-btn').addEventListener('click', function () {
       theme = theme === 'dark' ? 'light' : 'dark';
       applyTheme(theme);
-      try { window.localStorage.setItem('sp-theme', theme); } catch (e) { /* ignore */ }
       drawChart();
     });
   }
