@@ -86,6 +86,6 @@ these for you):
 - [x] Pro UI in app (badge, modal, activation, CSV export, 600-point history)
 - [x] Electron persistence + Android (Capacitor Preferences) persistence
 - [x] `FUNDING.yml` → GitHub Sponsors button live on the repo
+- [x] Governance charter + transaction ledger (GOVERNANCE.md, LEDGER.md) — the operating agent (Perplexity Computer) runs issuance, delivery, records, and reporting; the owner is sole legal principal
 - [ ] You: create GitHub Sponsors profile
 - [ ] You: create Lemon Squeezy/Gumroad account, list the Pro product
-- [ ] You: generate + upload a batch of license keys for automated delivery

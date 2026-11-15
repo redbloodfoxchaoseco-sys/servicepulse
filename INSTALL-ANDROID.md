@@ -106,3 +106,28 @@ would do with it.
 | "Blocked by Play Protect" with no Install anyway | Tap More details first; the option is behind it |
 | Install button greyed out | A screen overlay/blue-light filter is running — turn it off temporarily |
 | App closes immediately | Check you have Android 5.1+ and free storage; capture the OS version and report it as a GitHub issue |
+
+
+## Optional: ServicePulse Backend APK
+
+The telemetry backend also ships as a native Android app
+(`ServicePulse-Backend-debug.apk`). Install it the same way as the main
+app (allow unknown apps, install anyway past Play Protect).
+
+1. Open it — it starts a foreground service and serves the API on
+   port 3210 (same API as the Node backend, so the main app's backend
+   sync works against it: `http://<phone-ip>:3210`).
+2. The admin console opens automatically with your admin key
+   pre-filled. From a PC on the same Wi-Fi, open
+   `http://<phone-ip>:3210` and enter the admin key shown in the app.
+3. **Admin access**: the admin key is generated on first launch and
+   stored on the device. It unlocks device removal, notification
+   history, and full data reset. The ingest API also accepts it as
+   `X-API-Key`.
+4. **Notification access**: tap "Grant notification access" in the
+   admin console, enable ServicePulse Backend in the notification
+   access settings, and recent notifications appear in the console
+   (also via `GET /api/v1/notifications` with the admin key).
+5. Keep the app in the foreground or rely on the persistent
+   notification to keep the server running; Android may stop it under
+   battery optimization on some devices.
