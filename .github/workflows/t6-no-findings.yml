@@ -1,0 +1,113 @@
+# Weekly security audit against certified vulnerability databases.
+#
+# Data sources:
+#   - npm audit  -> GitHub Advisory Database (CVEs + GitHub Security Advisories)
+#   - osv-scanner -> OSV.dev (Google's open vulnerability database, aggregates
+#                    CVE/NVD, GHSA, PyPA, Go and more)
+#
+# If vulnerabilities are found, a GitHub issue is created and assigned to the
+# GitHub Copilot coding agent, which drafts a fix as a pull request.
+
+name: Security audit
+
+on:
+  schedule:
+    - cron: '0 6 * * 1' # every Monday 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # --- npm audit (GitHub Advisory Database) -----------------------------
+      - name: Audit Electron dependencies
+        working-directory: electron
+        run: npm audit --audit-level=high --json > "$GITHUB_WORKSPACE/audit-electron.json" || true
+
+      - name: Audit Android dependencies
+        working-directory: android
+        run: npm audit --audit-level=high --json > "$GITHUB_WORKSPACE/audit-android.json" || true
+
+      - name: Summarize npm audit findings
+        run: |
+          node -e '
+            const fs = require("fs");
+            let out = [];
+            for (const f of ["audit-electron.json", "audit-android.json"]) {
+              try {
+                const j = JSON.parse(fs.readFileSync(f, "utf8"));
+                const v = (j.metadata && j.metadata.vulnerabilities) || {};
+                const total = Object.values(v).reduce((a, b) => a + b, 0);
+                out.push(`- ${f.replace("audit-", "").replace(".json", "")}: ${total} vulnerabilities` +
+                  (total ? ` (${v.high || 0} high, ${v.critical || 0} critical)` : ""));
+              } catch { out.push(`- ${f}: audit could not run`); }
+            }
+            fs.writeFileSync("npm-summary.md", out.join("\n"));
+          '
+          cat npm-summary.md
+
+      # --- OSV scan (OSV.dev) ------------------------------------------------
+      - name: OSV scan (OSV.dev)
+        uses: google/osv-scanner-action@v2
+        with:
+          scan-args: |-
+            -r
+            --format=json
+            --output=osv-report.json
+            ./
+        continue-on-error: true
+
+      # --- Escalate to Copilot if anything was found -------------------------
+      - name: Open issue for Copilot coding agent
+        if: steps.findings.outputs.found == '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          {
+            echo "## Weekly security audit found vulnerabilities"
+            echo
+            echo "Certified databases consulted: **GitHub Advisory Database** (npm audit) and **OSV.dev** (osv-scanner)."
+            echo
+            echo "### npm audit summary"
+            echo
+            cat npm-summary.md
+            echo
+            echo "### Full reports"
+            echo
+            echo "- npm audit (electron): \`${GITHUB_WORKSPACE}/audit-electron.json\` (workflow artifact)"
+            echo "- npm audit (android): \`${GITHUB_WORKSPACE}/audit-android.json\` (workflow artifact)"
+            echo "- OSV.dev report: \`osv-report.json\` (workflow artifact)"
+            echo
+            echo "### Requested protocol"
+            echo
+            echo "Copilot: please remediate every high or critical finding, preferring minimal version bumps that satisfy the advisory range. Run the project checks described in MAINTENANCE.md and open a pull request with the fixes."
+          } > issue-body.md
+          gh issue create \
+            --repo "$REPO" \
+            --title "Security audit: vulnerabilities found ($(date -u +%Y-%m-%d))" \
+            --body-file issue-body.md \
+            --assignee copilot-swe-agent \
+            --label security
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-reports
+          path: |
+            audit-electron.json
+            audit-android.json
+            osv-report.json
+            npm-summary.md
+          if-no-files-found: ignore

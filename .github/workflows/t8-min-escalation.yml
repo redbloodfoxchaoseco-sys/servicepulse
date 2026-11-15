@@ -1,0 +1,30 @@
+name: T8 escalation path
+on: workflow_dispatch
+permissions:
+  contents: read
+  issues: write
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google/osv-scanner-action@v2
+        with:
+          scan-args: |-
+            -r
+            --format=json
+            --output=osv-report.json
+            ./
+        continue-on-error: true
+      - name: Open issue for Copilot coding agent
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh issue create \
+            --repo "$REPO" \
+            --title "Security audit: vulnerabilities found" \
+            --body "test" \
+            --assignee copilot-swe-agent \
+            --label security
