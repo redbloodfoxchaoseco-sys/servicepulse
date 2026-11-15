@@ -58,7 +58,7 @@ jobs:
 
       # --- OSV scan (OSV.dev) ------------------------------------------------
       - name: OSV scan (OSV.dev)
-        uses: google/osv-scanner-action@v2
+        uses: google/osv-scanner-action@v2.7.1
         with:
           scan-args: |-
             -r
