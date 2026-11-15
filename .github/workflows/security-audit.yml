@@ -118,9 +118,19 @@ jobs:
             echo
             echo "Copilot: please remediate every high or critical finding, preferring minimal version bumps that satisfy the advisory range. Run the project checks described in MAINTENANCE.md and open a pull request with the fixes."
           } > issue-body.md
-          gh issue create \
-            --repo "$REPO" \
-            --title "Security audit: vulnerabilities found ($(date -u +%Y-%m-%d))" \
-            --body-file issue-body.md \
-            --assignee copilot-swe-agent \
-            --label security
+          gh label create security --color d1242f --description "Security finding from the audit workflow" 2>/dev/null || true
+          if gh api "repos/$REPO/assignees/copilot-swe-agent" --silent 2>/dev/null; then
+            gh issue create \
+              --repo "$REPO" \
+              --title "Security audit: vulnerabilities found ($(date -u +%Y-%m-%d))" \
+              --body-file issue-body.md \
+              --assignee copilot-swe-agent \
+              --label security
+          else
+            echo "::notice::Copilot coding agent is not assignable yet (enable it in Settings → Copilot). Creating the issue unassigned."
+            gh issue create \
+              --repo "$REPO" \
+              --title "Security audit: vulnerabilities found ($(date -u +%Y-%m-%d))" \
+              --body-file issue-body.md \
+              --label security
+          fi

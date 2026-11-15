@@ -80,11 +80,20 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
         run: |
-          gh issue create \
-            --repo "$REPO" \
-            --title "Maintenance cycle failed ($(date -u +%Y-%m-%d))" \
-            --body "The weekly maintenance workflow failed. Copilot: please investigate the failing step in the workflow run, fix the root cause following the protocols in MAINTENANCE.md, and open a pull request." \
-            --assignee copilot-swe-agent \
-            --label maintenance
+          gh label create maintenance --color 0e8a16 --description "Maintenance cycle failure" 2>/dev/null || true
+          BODY="The weekly maintenance workflow failed. Copilot: please investigate the failing step in the workflow run, fix the root cause following the protocols in MAINTENANCE.md, and open a pull request."
+          if gh api "repos/$REPO/assignees/copilot-swe-agent" --silent 2>/dev/null; then
+            gh issue create --repo "$REPO" \
+              --title "Maintenance cycle failed ($(date -u +%Y-%m-%d))" \
+              --body "$BODY" \
+              --assignee copilot-swe-agent \
+              --label maintenance
+          else
+            echo "::notice::Copilot coding agent is not assignable yet (enable it in Settings → Copilot). Creating the issue unassigned."
+            gh issue create --repo "$REPO" \
+              --title "Maintenance cycle failed ($(date -u +%Y-%m-%d))" \
+              --body "$BODY" \
+              --label maintenance
+          fi
 
 # reindex: v2
