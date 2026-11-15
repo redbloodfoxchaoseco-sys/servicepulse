@@ -120,17 +120,18 @@ jobs:
           } > issue-body.md
           gh label create security --color d1242f --description "Security finding from the audit workflow" 2>/dev/null || true
           if gh api "repos/$REPO/assignees/copilot-swe-agent" --silent 2>/dev/null; then
-            gh issue create \
+            ISSUE=$(gh issue create \
               --repo "$REPO" \
               --title "Security audit: vulnerabilities found ($(date -u +%Y-%m-%d))" \
               --body-file issue-body.md \
-              --assignee copilot-swe-agent \
-              --label security
+              --assignee copilot-swe-agent)
           else
             echo "::notice::Copilot coding agent is not assignable yet (enable it in Settings → Copilot). Creating the issue unassigned."
-            gh issue create \
+            ISSUE=$(gh issue create \
               --repo "$REPO" \
               --title "Security audit: vulnerabilities found ($(date -u +%Y-%m-%d))" \
-              --body-file issue-body.md \
-              --label security
+              --body-file issue-body.md)
           fi
+          gh issue edit "$ISSUE" --repo "$REPO" --add-label security 2>/dev/null \
+            || echo "::notice::label 'security' unavailable, issue created without it"
+          echo "Created: $ISSUE"
