@@ -397,6 +397,66 @@ td.num, .pill { font-family: var(--font-mono); }
   .stats { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
 }
 
+/* Backend sync modal */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 50;
+  background: rgba(8, 11, 16, 0.7);
+  display: flex; align-items: center; justify-content: center;
+  padding: var(--space-4);
+}
+
+.modal-overlay[hidden] { display: none; }
+
+.modal { width: 100%; max-width: 420px; max-height: 90vh; overflow-y: auto; }
+
+.modal-hint { font-size: var(--text-sm); color: var(--text-muted); margin-bottom: var(--space-4); }
+
+.field { display: block; margin-bottom: var(--space-4); }
+
+.field > span {
+  display: block;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-bottom: var(--space-1);
+}
+
+.field em { text-transform: none; letter-spacing: 0; font-weight: 400; }
+
+.field input[type='url'], .field input[type='text'], .field input[type='password'] {
+  width: 100%;
+  background: var(--surface-inset);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  font-family: var(--font-mono);
+}
+
+.field input:focus { outline: none; border-color: var(--accent); }
+
+.field-row { display: flex; align-items: center; gap: var(--space-2); }
+.field-row > span { margin-bottom: 0; }
+.field-row input[type='checkbox'] { width: 16px; height: 16px; accent-color: var(--accent); }
+
+.sync-status {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-4);
+  word-break: break-word;
+}
+
+.sync-status.ok { color: var(--accent); border-color: var(--accent-dim); }
+.sync-status.err { color: var(--crit); border-color: var(--crit); }
+
+.modal-actions { display: flex; justify-content: flex-end; }
+
 /* Dark scrollbars (WebKit + Electron) */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: var(--surface-inset); }

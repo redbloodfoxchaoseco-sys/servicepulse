@@ -77,7 +77,11 @@ function createWindow() {
     }
   });
 
-  mainWindow.loadFile(path.join(__dirname, 'app', 'index.html'));
+  if (process.env.SP_SYNC) {
+    mainWindow.loadURL('file://' + path.join(__dirname, 'app', 'index.html') + '#sync');
+  } else {
+    mainWindow.loadFile(path.join(__dirname, 'app', 'index.html'));
+  }
 
   mainWindow.on('closed', () => {
     mainWindow = null;

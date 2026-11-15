@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:; connect-src *" />
   <title>ServicePulse</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
@@ -23,6 +23,9 @@
         <span class="badge" id="platform-badge" title="Runtime platform">
           <span class="dot dot-live" aria-hidden="true"></span><span id="platform-label">Detecting…</span>
         </span>
+        <button class="btn btn-icon" id="sync-btn" aria-label="Backend sync settings" title="Backend sync settings">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /><circle cx="9" cy="7" r="2" fill="currentColor" /><circle cx="15" cy="12" r="2" fill="currentColor" /><circle cx="11" cy="17" r="2" fill="currentColor" /></svg>
+        </button>
         <button class="btn btn-icon" id="theme-btn" aria-label="Switch to light mode" title="Toggle light / dark theme">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" /></svg>
         </button>
@@ -109,6 +112,37 @@
       <span>ServicePulse · <span id="footer-platform">—</span></span>
       <span class="footer-hint" id="footer-hint"></span>
     </footer>
+  </div>
+  <div class="modal-overlay" id="sync-modal" hidden>
+    <div class="modal card" role="dialog" aria-modal="true" aria-labelledby="sync-title">
+      <header class="card-head">
+        <h2 id="sync-title">Backend sync</h2>
+        <button class="btn btn-icon" id="sync-close" aria-label="Close">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+        </button>
+      </header>
+      <p class="modal-hint">Send this device's telemetry to your ServicePulse backend every 30 seconds.</p>
+      <label class="field">
+        <span>Backend URL</span>
+        <input type="url" id="sync-url" placeholder="https://your-backend.example.com" autocomplete="off" />
+      </label>
+      <label class="field">
+        <span>Device name <em>(optional)</em></span>
+        <input type="text" id="sync-name" placeholder="e.g. My Phone" autocomplete="off" maxlength="80" />
+      </label>
+      <label class="field">
+        <span>API key <em>(only if the backend requires one)</em></span>
+        <input type="password" id="sync-key" placeholder="X-API-Key" autocomplete="off" />
+      </label>
+      <label class="field field-row">
+        <input type="checkbox" id="sync-enabled" />
+        <span>Enable sync</span>
+      </label>
+      <p class="sync-status" id="sync-status">Sync is off.</p>
+      <div class="modal-actions">
+        <button class="btn" id="sync-save">Save</button>
+      </div>
+    </div>
   </div>
   <script src="app.js"></script>
 </body>

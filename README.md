@@ -92,3 +92,20 @@ The Electron main process supports a screenshot mode for CI/QA:
 ```bash
 SP_SHOT=/tmp/shot.png SP_SHOT_DELAY=8000 npx electron .
 ```
+
+## Backend (telemetry service)
+
+`backend/` is a zero-dependency Node.js telemetry service. Android clients POST
+snapshots to `POST /api/v1/telemetry`; a live dashboard and history API are included
+(`backend/API.md` has the full reference). Optional `BACKEND_KEY` + `X-API-Key`
+header protects ingestion. In the app, tap the sync gear in the top bar to configure
+the backend URL — telemetry is sent every 30 seconds using the native HTTP bridge
+(no CORS restrictions).
+
+## Android app
+
+Download `ServicePulse-debug.apk` from the
+[latest release](https://github.com/redbloodfoxchaoseco-sys/servicepulse/releases/latest),
+enable "Install unknown apps" for your browser, and install. The APK is signed with
+the debug key; a release-signed build requires your own keystore (`android/android/`
+gradle `assembleRelease`).

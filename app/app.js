@@ -90,6 +90,8 @@
           memUsed: memUsed,
           memTotal: null,
           memDetail: memUsed != null ? 'RAM in use' : null,
+          storageFree: diskFree,
+          storageTotal: diskTotal,
           network: { connected: !!n.connected, type: n.connectionType },
           host: (d.manufacturer || '') + ' ' + (d.model || ''),
           hostDetail: 'Android ' + (d.osVersion || '?'),
@@ -134,6 +136,8 @@
         memUsed: 6.1e9 + gauss(0, 6e8),
         memTotal: 16e9,
         memDetail: 'demo RAM',
+        storageFree: 2.4e10,
+        storageTotal: 1.07e11,
         network: { connected: true, type: 'wifi' },
         host: 'Demo Workstation',
         hostDetail: 'simulated telemetry',
@@ -247,6 +251,7 @@
     }
 
     el('updated').textContent = 'updated ' + new Date().toLocaleTimeString();
+    syncSend(snapshot);
   }
 
   function setMeter(id, pct) {
@@ -407,6 +412,149 @@
     ctx.fill();
   }
 
+  /* ---------------- backend sync ---------------- */
+
+  var SYNC_INTERVAL_MS = 30000;
+  var syncState = { enabled: false, url: '', name: '', key: '', deviceId: null, lastOk: null, lastErr: null, lastSent: 0 };
+
+  function syncPrefs() {
+    return (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Preferences) || null;
+  }
+
+  function syncLoad() {
+    var prefs = syncPrefs();
+    if (!prefs) return Promise.resolve();
+    return prefs.get({ key: 'sp-sync' }).then(function (r) {
+      try {
+        var cfg = JSON.parse(r.value);
+        if (cfg) {
+          syncState.enabled = !!cfg.enabled;
+          syncState.url = cfg.url || '';
+          syncState.name = cfg.name || '';
+          syncState.key = cfg.key || '';
+          syncState.deviceId = cfg.deviceId || null;
+        }
+      } catch (e) { /* corrupt or missing — keep defaults */ }
+    }).catch(function () {});
+  }
+
+  function syncSave() {
+    var prefs = syncPrefs();
+    if (!prefs) return;
+    prefs.set({
+      key: 'sp-sync',
+      value: JSON.stringify({
+        enabled: syncState.enabled, url: syncState.url, name: syncState.name,
+        key: syncState.key, deviceId: syncState.deviceId
+      })
+    }).catch(function () {});
+  }
+
+  function updateSyncStatus() {
+    var box = el('sync-status');
+    if (!box) return;
+    if (!syncState.enabled) {
+      box.textContent = 'Sync is off.';
+      box.className = 'sync-status';
+    } else if (syncState.lastErr) {
+      box.textContent = 'Last attempt failed: ' + syncState.lastErr;
+      box.className = 'sync-status err';
+    } else if (syncState.lastOk) {
+      box.textContent = 'Last sync OK at ' + syncState.lastOk + ' · device ' + syncState.deviceId;
+      box.className = 'sync-status ok';
+    } else {
+      box.textContent = 'Enabled — waiting for first sync…';
+      box.className = 'sync-status';
+    }
+  }
+
+  function syncSend(snapshot) {
+    if (!syncState.enabled || !syncState.url) return;
+    var now = Date.now();
+    if (now - syncState.lastSent < SYNC_INTERVAL_MS) return;
+    syncState.lastSent = now;
+
+    if (!syncState.deviceId) {
+      var base = (snapshot.host || 'device').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'device';
+      syncState.deviceId = base + '-' + Math.random().toString(36).slice(2, 8);
+      syncSave();
+    }
+
+    var payload = {
+      deviceId: syncState.deviceId,
+      deviceName: syncState.name || undefined,
+      device: snapshot.device
+        ? {
+            model: snapshot.device.Model,
+            manufacturer: snapshot.device.Manufacturer,
+            platform: snapshot.device.Platform,
+            osVersion: snapshot.device['Android version']
+          }
+        : { platform: (navigator.userAgent.indexOf('Win') !== -1 ? 'windows' : 'desktop') },
+      cpu: snapshot.cpu,
+      memUsed: snapshot.memUsed,
+      memTotal: snapshot.memTotal,
+      storageFree: snapshot.storageFree,
+      storageTotal: snapshot.storageTotal,
+      networkConnected: snapshot.network ? snapshot.network.connected : null,
+      networkType: snapshot.network ? snapshot.network.type : null
+    };
+
+    var headers = { 'Content-Type': 'application/json' };
+    if (syncState.key) headers['X-API-Key'] = syncState.key;
+    var endpoint = syncState.url.replace(/\/+$/, '') + '/api/v1/telemetry';
+    var http = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.CapacitorHttp;
+
+    var done = function (ok, err) {
+      syncState.lastOk = ok ? new Date().toLocaleTimeString() : null;
+      syncState.lastErr = ok ? null : err;
+      updateSyncStatus();
+    };
+
+    if (http) {
+      /* native bridge — no CORS constraints */
+      http.request({ method: 'POST', url: endpoint, headers: headers, data: payload })
+        .then(function () { done(true); })
+        .catch(function (e) { done(false, (e && e.message) || 'request failed'); });
+    } else {
+      fetch(endpoint, { method: 'POST', headers: headers, body: JSON.stringify(payload) })
+        .then(function (r) { done(r.ok, r.ok ? null : 'HTTP ' + r.status); })
+        .catch(function (e) { done(false, (e && e.message) || 'request failed'); });
+    }
+  }
+
+  function initSync() {
+    var modal = el('sync-modal');
+    if (!modal) return;
+
+    syncLoad().then(function () {
+      el('sync-url').value = syncState.url;
+      el('sync-name').value = syncState.name;
+      el('sync-key').value = syncState.key;
+      el('sync-enabled').checked = syncState.enabled;
+      updateSyncStatus();
+    });
+
+    el('sync-btn').addEventListener('click', function () { modal.hidden = false; });
+    if (location.hash === '#sync') modal.hidden = false;
+    el('sync-close').addEventListener('click', function () { modal.hidden = true; });
+    modal.addEventListener('click', function (e) { if (e.target === modal) modal.hidden = true; });
+
+    el('sync-save').addEventListener('click', function () {
+      syncState.url = el('sync-url').value.trim();
+      syncState.name = el('sync-name').value.trim();
+      syncState.key = el('sync-key').value.trim();
+      syncState.enabled = el('sync-enabled').checked;
+      syncState.lastOk = null;
+      syncState.lastErr = null;
+      syncState.lastSent = 0;
+      syncSave();
+      updateSyncStatus();
+      modal.hidden = true;
+      if (state.snapshot) syncSend(state.snapshot);
+    });
+  }
+
   /* ---------------- theme toggle ---------------- */
 
   var SUN_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" /></svg>';
@@ -462,6 +610,7 @@
 
     capacitorProvider.refresh = tick;
     initTheme();
+    initSync();
 
     /* controls */
     el('pause-btn').addEventListener('click', function () {

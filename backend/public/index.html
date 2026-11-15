@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ServicePulse Backend — Devices</title>
+  <script>window.__API_BASE__ = '__PORT_3210__';</script>
+  <style>
+    :root {
+      --bg: #0e1218; --surface: #141a23; --border: #26303f; --text: #dbe2ec;
+      --muted: #8b96a5; --faint: #5b6674; --accent: #3ecf9e;
+      --accent-glow: rgba(62,207,158,.14); --warn: #e5b45c; --crit: #e8697a;
+      --font: ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+      --mono: ui-monospace, Consolas, Menlo, monospace;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { min-height: 100vh; font-family: var(--font); color: var(--text); line-height: 1.6;
+      background: radial-gradient(1100px 500px at 85% -10%, rgba(62,207,158,.05), transparent 60%), var(--bg);
+      padding: 40px 24px; }
+    .wrap { max-width: 860px; margin: 0 auto; }
+    header { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 28px; }
+    h1 { font-size: 1.4rem; letter-spacing: -0.01em; }
+    .sub { color: var(--muted); font-size: 0.85rem; }
+    .pill { font-family: var(--mono); font-size: 0.72rem; color: var(--accent); background: var(--accent-glow);
+      border-radius: 999px; padding: 2px 10px; border: 1px solid var(--border); }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+    .card h2 { font-size: 1rem; margin-bottom: 4px; }
+    .meta { font-family: var(--mono); font-size: 0.72rem; color: var(--faint); margin-bottom: 12px; }
+    .row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+    .stat { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; background: rgba(0,0,0,.2); }
+    .stat dt { font-size: 0.68rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+    .stat dd { font-family: var(--mono); font-size: 0.95rem; }
+    .empty { color: var(--muted); padding: 32px; text-align: center; font-size: 0.9rem; }
+    a { color: var(--accent); }
+    .spark { margin-top: 10px; height: 48px; width: 100%; display: block; }
+    footer { margin-top: 24px; color: var(--faint); font-size: 0.72rem; font-family: var(--mono); text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>ServicePulse Backend</h1>
+        <p class="sub">Registered devices and their latest telemetry</p>
+      </div>
+      <span class="pill" id="health">connecting…</span>
+    </header>
+    <div id="devices"><p class="empty">Loading devices…</p></div>
+    <footer>GET /api/v1/devices · POST /api/v1/telemetry · auto-refresh 10s</footer>
+  </div>
+  <script>
+    (function () {
+      'use strict';
+      var raw = window.__API_BASE__ || '';
+      var unresolved = raw.indexOf('__PORT_') === 0;
+      var API = unresolved ? 'http://localhost:3210' : raw;
+
+      function fmtBytes(b) {
+        if (b == null) return '—';
+        var u = ['B', 'KB', 'MB', 'GB', 'TB'], i = 0, v = b;
+        while (v >= 1024 && i < u.length - 1) { v /= 1024; i++; }
+        return v.toFixed(v >= 100 || i < 2 ? 0 : 1) + ' ' + u[i];
+      }
+      function ago(ts) {
+        if (!ts) return '—';
+        var s = Math.round((Date.now() - ts) / 1000);
+        if (s < 60) return s + 's ago';
+        if (s < 3600) return Math.round(s / 60) + 'm ago';
+        return Math.round(s / 3600) + 'h ago';
+      }
+
+      function spark(values) {
+        var w = 400, h = 48, pad = 3;
+        var max = Math.max.apply(null, values.concat([1]));
+        var min = Math.min.apply(null, values.concat([0]));
+        var range = max - min || 1;
+        var pts = values.map(function (v, i) {
+          var x = pad + (i / Math.max(values.length - 1, 1)) * (w - pad * 2);
+          var y = h - pad - ((v - min) / range) * (h - pad * 2);
+          return x.toFixed(1) + ',' + y.toFixed(1);
+        });
+        return '<svg class="spark" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none">' +
+          '<polyline points="' + pts.join(' ') + '" fill="none" stroke="#3ecf9e" stroke-width="2"/>' +
+          '</svg>';
+      }
+
+      function render(devices) {
+        var root = document.getElementById('devices');
+        if (!devices.length) {
+          root.innerHTML = '<div class="card"><p class="empty">No devices registered yet.<br>' +
+            'Open the ServicePulse app on Android, enable backend sync in settings, and point it at this server.</p></div>';
+          return;
+        }
+        root.innerHTML = devices.map(function (d) {
+          var l = d.latest || {};
+          var mem = l.memUsed != null && l.memTotal ? ' / ' + fmtBytes(l.memTotal) : '';
+          var hist = (d.sparkline || []).length > 1 ? spark(d.sparkline) : '';
+          return '<div class="card">' +
+            '<h2>' + (d.info && d.info.name ? d.info.name : d.deviceId) + '</h2>' +
+            '<p class="meta">' + (d.info ? [d.info.manufacturer, d.info.model, (d.info.platform + ' ' + (d.info.osVersion || '')).trim()].filter(Boolean).join(' · ') : '') +
+            ' · last seen ' + ago(d.lastSeen) + ' · ' + d.samples + ' samples</p>' +
+            '<dl class="row">' +
+            '<div class="stat"><dt>Memory</dt><dd>' + fmtBytes(l.memUsed) + mem + '</dd></div>' +
+            '<div class="stat"><dt>CPU</dt><dd>' + (l.cpu != null ? l.cpu.toFixed(1) + '%' : '—') + '</dd></div>' +
+            '<div class="stat"><dt>Storage free</dt><dd>' + fmtBytes(l.storageFree) + '</dd></div>' +
+            '<div class="stat"><dt>Network</dt><dd>' + (l.networkConnected ? l.networkType || 'online' : 'offline') + '</dd></div>' +
+            '</dl>' + hist + '</div>';
+        }).join('');
+      }
+
+      function refresh() {
+        fetch(API + '/api/v1/health')
+          .then(function (r) { return r.json(); })
+          .then(function (h) {
+            document.getElementById('health').textContent = 'up · ' + h.devices + ' device' + (h.devices === 1 ? '' : 's');
+            return fetch(API + '/api/v1/devices').then(function (r) { return r.json(); });
+          })
+          .then(function (data) {
+            return Promise.all((data.devices || []).slice(0, 12).map(function (d) {
+              return fetch(API + '/api/v1/devices/' + d.deviceId + '/history?limit=60')
+                .then(function (r) { return r.json(); })
+                .then(function (h) {
+                  d.sparkline = (h.history || []).map(function (s) { return s.memUsed || 0; });
+                  return d;
+                })
+                .catch(function () { return d; });
+            }));
+          })
+          .then(render)
+          .catch(function () {
+            document.getElementById('health').textContent = 'backend unreachable';
+          });
+      }
+
+      refresh();
+      setInterval(refresh, 10000);
+    })();
+  </script>
+</body>
+</html>

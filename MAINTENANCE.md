@@ -97,3 +97,21 @@ The issue-assignment integration requires GitHub Copilot coding agent to be
 enabled for the repository (Settings → Copilot → allow Copilot to be assigned
 issues/PRs). Without it, the issues are still created — you simply fix them
 yourself instead of Copilot drafting the PR.
+
+## Backend (telemetry service)
+
+`backend/` is a zero-dependency Node.js telemetry service:
+
+- Android apps POST device snapshots to `POST /api/v1/telemetry` (see `backend/API.md`).
+- Dashboard: `GET /api/v1/devices`, `GET /api/v1/devices/:id/history`, `GET /api/v1/health`.
+- Data is stored in `backend/data/devices.json` (gitignored).
+- Optional API key: set `BACKEND_KEY` env and send it as the `X-API-Key` header.
+
+Run locally:
+
+```bash
+cd backend && node server.js   # listens on PORT (default 3210)
+```
+
+In the Android app, open the sync gear in the top bar, enable sync, and point it at
+the deployed backend URL (no trailing slash).

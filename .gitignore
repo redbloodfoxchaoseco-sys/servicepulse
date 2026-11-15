@@ -9,3 +9,4 @@ android/android/app/src/main/assets/public/
 electron/dist/
 *.log
 .DS_Store
+backend/data/
