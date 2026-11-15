@@ -17,12 +17,16 @@ on:
   workflow_dispatch:
 
 permissions:
+  # the OSV reusable workflow requires at least these
+  actions: read
   contents: read
-  issues: write
+  security-events: write
 
 jobs:
   # --- npm audit against the GitHub Advisory Database ----------------------
   npm-audit:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     outputs:
       found: ${{ steps.findings.outputs.found }}
@@ -91,6 +95,8 @@ jobs:
   escalate:
     needs: [npm-audit, osv-scan]
     if: always() && (needs.npm-audit.outputs.found == '1' || needs.osv-scan.result == 'failure')
+    permissions:
+      issues: write
     runs-on: ubuntu-latest
     steps:
       - name: Open issue for Copilot coding agent
