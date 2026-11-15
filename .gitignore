@@ -16,3 +16,5 @@ nativebridge/android/.gradle/
 nativebridge/android/app/build/
 nativebridge/android/build/
 nativebridge/android/local.properties
+# Licensing — the private signing key NEVER leaves this machine.
+licensing/private_key.pem

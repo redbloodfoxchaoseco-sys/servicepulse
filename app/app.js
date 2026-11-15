@@ -11,6 +11,8 @@
   var BURST_MS = 400;      /* fast initial sampling so the chart fills quickly */
   var BURST_SAMPLES = 24;
   var HISTORY_LEN = 60;
+  var PRO_HISTORY_LEN = 600;
+  function historyMax() { return state.pro ? PRO_HISTORY_LEN : HISTORY_LEN; }
 
   var state = {
     paused: false,
@@ -263,7 +265,7 @@
   function pushHistory(value) {
     if (value == null) return;
     state.history.push(value);
-    if (state.history.length > HISTORY_LEN) state.history.shift();
+    if (state.history.length > historyMax()) state.history.shift();
   }
 
   function renderTable() {
@@ -372,9 +374,9 @@
 
     /* Until the history buffer is full, the line grows from the left
        across the full width; once full it scrolls right-anchored. */
-    var full = data.length >= HISTORY_LEN;
+    var full = data.length >= historyMax();
     var x0 = 0;
-    var step = full ? w / (HISTORY_LEN - 1) : w / Math.max(data.length - 1, 1);
+    var step = full ? w / (historyMax() - 1) : w / Math.max(data.length - 1, 1);
 
     /* area fill */
     ctx.beginPath();
@@ -555,6 +557,151 @@
     });
   }
 
+  /* ---------------- ServicePulse Pro (license keys) ---------------- */
+
+  /* Public ECDSA P-256 key (licensing/public-jwk.json). The private key
+     never ships — licenses are signed offline with licensing/keygen.js. */
+  var LICENSE_PUBKEY = { kty: 'EC', crv: 'P-256', alg: 'ES256', ext: true, key_ops: ['verify'],
+    x: 'Btywe2TSbcM_rU9eHcFAQBsPQBPkdyA6ORAwJlIegtE', y: 'V8WaZfTebH7b4cS-whEo_oeUcDnDiKsYnqLXDIfYkaw' };
+
+  function b64uToBuf(str) {
+    var b = atob(str.replace(/-/g, '+').replace(/_/g, '/'));
+    var out = new Uint8Array(b.length);
+    for (var i = 0; i < b.length; i++) out[i] = b.charCodeAt(i);
+    return out;
+  }
+
+  function verifyLicense(key) {
+    var parts = String(key || '').trim().split('.');
+    if (parts.length !== 2) return Promise.reject(new Error('malformed key'));
+    return crypto.subtle.importKey('jwk', LICENSE_PUBKEY, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify'])
+      .then(function (pub) {
+        return crypto.subtle.verify(
+          { name: 'ECDSA', hash: { name: 'SHA-256' } }, pub,
+          b64uToBuf(parts[1]), b64uToBuf(parts[0]));
+      })
+      .then(function (ok) {
+        if (!ok) throw new Error('invalid signature');
+        var payload = JSON.parse(new TextDecoder().decode(b64uToBuf(parts[0])));
+        if (payload.product !== 'servicepulse') throw new Error('wrong product');
+        if (payload.expires !== 'lifetime' && new Date(payload.expires) < new Date()) {
+          throw new Error('license expired on ' + payload.expires);
+        }
+        return payload;
+      });
+  }
+
+  function licenseStore() {
+    /* Electron desktop: main-process file. Android: Preferences plugin. */
+    if (window.electronAPI && window.electronAPI.licenseGet) return 'electron';
+    if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Preferences) return 'capacitor';
+    return null;
+  }
+
+  function licenseLoad() {
+    var store = licenseStore();
+    if (store === 'electron') {
+      return window.electronAPI.licenseGet().then(function (k) { return k || null; }).catch(function () { return null; });
+    }
+    if (store === 'capacitor') {
+      return window.Capacitor.Plugins.Preferences.get({ key: 'sp-license' })
+        .then(function (r) { return (r && r.value) || null; }).catch(function () { return null; });
+    }
+    return Promise.resolve(state.licenseKey || null);
+  }
+
+  function licenseSave(key) {
+    state.licenseKey = key;
+    var store = licenseStore();
+    if (store === 'electron') {
+      window.electronAPI.licenseSet(key).catch(function () {});
+    } else if (store === 'capacitor') {
+      window.Capacitor.Plugins.Preferences.set({ key: 'sp-license', value: key }).catch(function () {});
+    }
+  }
+
+  function applyPro(payload, key) {
+    state.pro = true;
+    state.licenseKey = key;
+    el('pro-badge').hidden = false;
+    el('export-btn').hidden = false;
+    var box = el('pro-status');
+    if (box) {
+      box.textContent = 'Pro active — licensed to ' + payload.name +
+        (payload.expires === 'lifetime' ? ' (lifetime)' : ' until ' + payload.expires);
+      box.className = 'sync-status ok';
+    }
+    if (state.history && state.history.length) drawChart();
+  }
+
+  function updateProStatus(msg, isErr) {
+    var box = el('pro-status');
+    if (!box) return;
+    box.textContent = msg;
+    box.className = 'sync-status' + (isErr ? ' err' : '');
+  }
+
+  function activateLicense(key) {
+    updateProStatus('Checking license…', false);
+    verifyLicense(key)
+      .then(function (payload) {
+        licenseSave(key);
+        applyPro(payload, key);
+        el('pro-modal').hidden = true;
+      })
+      .catch(function (e) {
+        updateProStatus('License check failed: ' + e.message, true);
+      });
+  }
+
+  function proExportCsv() {
+    var rows = ['time,cpu_percent'];
+    var now = Date.now();
+    for (var i = 0; i < state.history.length; i++) {
+      var t = new Date(now - (state.history.length - 1 - i) * 3000);
+      rows.push(t.toISOString() + ',' + state.history[i]);
+    }
+    var csv = rows.join('\n');
+    var blob = new Blob([csv], { type: 'text/csv' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'servicepulse-history-' + new Date().toISOString().slice(0, 19) + '.csv';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+
+  function initPro() {
+    var modal = el('pro-modal');
+    if (!modal) return;
+
+    el('pro-btn').addEventListener('click', function () { modal.hidden = false; });
+    el('pro-close').addEventListener('click', function () { modal.hidden = true; });
+    modal.addEventListener('click', function (e) { if (e.target === modal) modal.hidden = true; });
+    el('export-btn').addEventListener('click', proExportCsv);
+
+    el('pro-activate').addEventListener('click', function () {
+      activateLicense(el('pro-key').value);
+    });
+
+    /* restore previous activation */
+    licenseLoad().then(function (key) {
+      if (!key) return;
+      return verifyLicense(key).then(function (payload) {
+        applyPro(payload, key);
+      }).catch(function () { /* stale/invalid — stay free */ });
+    }).catch(function () {});
+
+    /* deep links: #pro opens the modal, #pro=<key> activates directly */
+    if (location.hash === '#pro') modal.hidden = false;
+    var m = /^#pro=([^&]+)$/.exec(location.hash);
+    if (m) {
+      modal.hidden = false;
+      el('pro-key').value = m[1];
+      activateLicense(m[1]);
+    }
+  }
+
   /* ---------------- theme toggle ---------------- */
 
   var SUN_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" /></svg>';
@@ -611,6 +758,7 @@
     capacitorProvider.refresh = tick;
     initTheme();
     initSync();
+    initPro();
 
     /* controls */
     el('pause-btn').addEventListener('click', function () {

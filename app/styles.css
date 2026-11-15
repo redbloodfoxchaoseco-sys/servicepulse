@@ -472,3 +472,13 @@ td.num, .pill { font-family: var(--font-mono); }
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ---------------- pro ---------------- */
+.pro-badge {
+  font-family: var(--font-mono, monospace); font-size: 0.62rem; font-weight: 700;
+  letter-spacing: 0.1em; color: #0e1218; background: var(--accent);
+  border-radius: 5px; padding: 2px 6px; margin-left: 4px;
+}
+.pro-features { margin: 4px 0 8px; padding-left: 18px; color: var(--text-muted, #8b96a5); font-size: 0.82rem; line-height: 1.8; }
+.pro-features li::marker { color: var(--accent); }
+.btn.ghost { background: transparent; color: var(--text, #dbe2ec); border: 1px solid var(--border, #26303f); text-decoration: none; }

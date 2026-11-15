@@ -4,6 +4,7 @@
  */
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const si = require('systeminformation');
 
 let mainWindow = null;
@@ -60,6 +61,24 @@ ipcMain.handle('sys:processes', async () => {
     .slice(0, 80);
 });
 
+/* ServicePulse Pro license persistence — stored in userData, never in the repo. */
+function licensePath() {
+  return path.join(app.getPath('userData'), 'servicepulse-license.json');
+}
+
+ipcMain.handle('sp:licenseGet', async () => {
+  try {
+    return JSON.parse(fs.readFileSync(licensePath(), 'utf8')).key || '';
+  } catch { return ''; }
+});
+
+ipcMain.handle('sp:licenseSet', async (_e, key) => {
+  const file = licensePath();
+  if (!key) { try { fs.unlinkSync(file); } catch {} return; }
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, JSON.stringify({ key }, null, 2));
+});
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1100,
@@ -77,7 +96,9 @@ function createWindow() {
     }
   });
 
-  if (process.env.SP_SYNC) {
+  if (process.env.SP_PRO_KEY) {
+    mainWindow.loadURL('file://' + path.join(__dirname, 'app', 'index.html') + '#pro=' + encodeURIComponent(process.env.SP_PRO_KEY));
+  } else if (process.env.SP_SYNC) {
     mainWindow.loadURL('file://' + path.join(__dirname, 'app', 'index.html') + '#sync');
   } else {
     mainWindow.loadFile(path.join(__dirname, 'app', 'index.html'));

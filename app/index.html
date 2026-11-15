@@ -23,6 +23,13 @@
         <span class="badge" id="platform-badge" title="Runtime platform">
           <span class="dot dot-live" aria-hidden="true"></span><span id="platform-label">Detecting…</span>
         </span>
+        <span class="pro-badge" id="pro-badge" hidden>PRO</span>
+        <button class="btn btn-icon" id="export-btn" aria-label="Export CSV (Pro)" title="Export history to CSV (Pro)" hidden>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
+        </button>
+        <button class="btn btn-icon" id="pro-btn" aria-label="ServicePulse Pro" title="ServicePulse Pro">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" /></svg>
+        </button>
         <button class="btn btn-icon" id="sync-btn" aria-label="Backend sync settings" title="Backend sync settings">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /><circle cx="9" cy="7" r="2" fill="currentColor" /><circle cx="15" cy="12" r="2" fill="currentColor" /><circle cx="11" cy="17" r="2" fill="currentColor" /></svg>
         </button>
@@ -141,6 +148,31 @@
       <p class="sync-status" id="sync-status">Sync is off.</p>
       <div class="modal-actions">
         <button class="btn" id="sync-save">Save</button>
+      </div>
+    </div>
+  </div>
+  <div class="modal-overlay" id="pro-modal" hidden>
+    <div class="modal card" role="dialog" aria-modal="true" aria-labelledby="pro-title">
+      <header class="card-head">
+        <h2 id="pro-title">ServicePulse Pro</h2>
+        <button class="btn btn-icon" id="pro-close" aria-label="Close">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+        </button>
+      </header>
+      <p class="modal-hint">Support the project and unlock extended monitoring.</p>
+      <ul class="pro-features">
+        <li>Extended history — 30 minutes instead of 3 minutes</li>
+        <li>CSV export of the load history and services table</li>
+        <li>Pro badge and priority feature requests</li>
+      </ul>
+      <label class="field">
+        <span>License key</span>
+        <input type="text" id="pro-key" placeholder="paste your license key" autocomplete="off" />
+      </label>
+      <p class="sync-status" id="pro-status">Free version — 3 minute history window.</p>
+      <div class="modal-actions">
+        <a class="btn ghost" id="pro-buy" href="https://github.com/sponsors/redbloodfoxchaoseco-sys" target="_blank" rel="noopener">Get a license</a>
+        <button class="btn" id="pro-activate">Activate</button>
       </div>
     </div>
   </div>

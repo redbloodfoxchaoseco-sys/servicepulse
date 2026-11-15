@@ -4,5 +4,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('electronAPI', {
   overview: () => ipcRenderer.invoke('sys:overview'),
   processes: () => ipcRenderer.invoke('sys:processes'),
-  platform: process.platform
+  platform: process.platform,
+  licenseGet: () => ipcRenderer.invoke('sp:licenseGet'),
+  licenseSet: (key) => ipcRenderer.invoke('sp:licenseSet', key)
 });
