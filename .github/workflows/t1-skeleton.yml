@@ -1,0 +1,29 @@
+# Weekly security audit against certified vulnerability databases.
+#
+# Data sources:
+#   - npm audit  -> GitHub Advisory Database (CVEs + GitHub Security Advisories)
+#   - osv-scanner -> OSV.dev (Google's open vulnerability database, aggregates
+#                    CVE/NVD, GHSA, PyPA, Go and more)
+#
+# If vulnerabilities are found, a GitHub issue is created and assigned to the
+# GitHub Copilot coding agent, which drafts a fix as a pull request.
+
+name: Security audit
+
+on:
+  schedule:
+    - cron: '0 6 * * 1' # every Monday 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
