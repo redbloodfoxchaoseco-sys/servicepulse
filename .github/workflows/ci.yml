@@ -1,0 +1,45 @@
+# Fast checks on every push and pull request.
+# The weekly maintenance workflow does the heavier work (dependency
+# installs, security patches, APK build); this one must stay under ~1 minute.
+
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Backend tests (no dependencies required)
+        working-directory: backend
+        run: node --test test/
+
+      - name: Syntax-check shipped JavaScript
+        run: |
+          node --check app/app.js
+          node --check backend/server.js
+          node --check backend/mdns.js
+          node --check electron/main.js
+          node --check electron/preload.js
+
+      - name: Verify shared UI is synced
+        run: |
+          node scripts/sync-web.js
+          if ! git diff --exit-code --quiet; then
+            echo "::error::electron/app or android/www is out of sync with app/ — run scripts/sync-web.js and commit"
+            git diff --stat
+            exit 1
+          fi

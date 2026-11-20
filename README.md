@@ -97,9 +97,27 @@ The Electron main process supports a screenshot mode for CI/QA:
 SP_SHOT=/tmp/shot.png SP_SHOT_DELAY=8000 npx electron .
 ```
 
+## Discovery (mDNS)
+
+The backend advertises itself on the local network as `_servicepulse._tcp`, so
+clients find it by name instead of by IP. Records: PTR, SRV, TXT
+(`v=1 api=/api/v1 name=...`) and an A record for `<hostname>.local`.
+
+```bash
+cd backend && npm start
+# ServicePulse backend listening on :3210
+# mDNS: advertising _servicepulse._tcp.local as "ServicePulse on studio"
+```
+
+Disable with `MDNS=0`. The first consumer is
+[ALBA Companion](../alba-companion) — an Android shell that scans, resolves and
+connects with zero configuration. `GET /api/v1/info` is the public handshake
+used to confirm a discovered service really is ServicePulse.
+
 ## Backend (telemetry service)
 
-`backend/` is a zero-dependency Node.js telemetry service. Android clients POST
+`backend/` is a zero-dependency Node.js telemetry service (`npm test` runs its
+suite with `node:test`). Android clients POST
 snapshots to `POST /api/v1/telemetry`; a live dashboard and history API are included
 (`backend/API.md` has the full reference). Optional `BACKEND_KEY` + `X-API-Key`
 header protects ingestion. In the app, tap the sync gear in the top bar to configure

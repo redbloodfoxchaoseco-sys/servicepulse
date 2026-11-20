@@ -81,15 +81,68 @@ jobs:
             npm-summary.md
           if-no-files-found: ignore
 
-  # --- OSV scan via the official reusable workflow --------------------------
+  # --- OSV scan ------------------------------------------------------------
+  # Runs the official osv-scanner binary directly. The previous setup called
+  # google/osv-scanner-action's reusable workflow, whose reporter step failed
+  # on every run (it expects SARIF upload to be enabled); scanning and
+  # escalation now live in this repository so failures mean real findings.
   osv-scan:
-    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v2.7.1
-    with:
-      scan-args: |-
-        -r
-        ./
-      fail-on-vuln: true
-      upload-sarif: false
+    permissions:
+      contents: read
+      actions: read
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install osv-scanner
+        run: |
+          set -euo pipefail
+          VERSION=v2.2.3
+          curl -sSfL -o /tmp/osv-scanner             "https://github.com/google/osv-scanner/releases/download/${VERSION}/osv-scanner_linux_amd64"
+          sudo install -m 0755 /tmp/osv-scanner /usr/local/bin/osv-scanner
+          osv-scanner --version
+
+      - name: Scan repository
+        id: scan
+        run: |
+          set +e
+          osv-scanner scan source -r . --format=json --output=osv-results.json
+          CODE=$?
+          echo "exit_code=$CODE" >> "$GITHUB_OUTPUT"
+          if [ "$CODE" -eq 0 ]; then
+            echo "No known vulnerabilities."
+          elif [ "$CODE" -eq 1 ]; then
+            echo "::warning::osv-scanner found vulnerabilities"
+          else
+            echo "::error::osv-scanner failed with exit code $CODE"
+            exit "$CODE"
+          fi
+
+      - name: Summarize OSV findings
+        if: always()
+        run: |
+          node -e '
+            const fs = require("fs");
+            let n = 0;
+            try {
+              const j = JSON.parse(fs.readFileSync("osv-results.json", "utf8"));
+              for (const r of j.results || []) n += (r.packages || []).reduce((a, p) => a + (p.vulnerabilities || []).length, 0);
+            } catch {}
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `\n### OSV.dev scan\n\n${n} vulnerable package(s) found.\n`);
+            console.log(`${n} vulnerable package(s)`);
+          '
+
+      - name: Upload OSV report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: osv-report
+          path: osv-results.json
+          if-no-files-found: ignore
+
+      - name: Fail when vulnerabilities were found
+        if: steps.scan.outputs.exit_code == '1'
+        run: exit 1
 
   # --- Escalate to the Copilot coding agent if anything was found -----------
   escalate:

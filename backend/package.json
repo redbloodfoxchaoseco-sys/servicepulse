@@ -1,1 +1,15 @@
-{"name": "servicepulse-backend", "version": "1.0.0", "description": "Telemetry backend for the ServicePulse Android and desktop apps", "main": "server.js", "scripts": {"start": "node server.js"}, "engines": {"node": ">=18"}, "author": "ServicePulse", "license": "MIT"}
+{
+  "name": "servicepulse-backend",
+  "version": "1.0.0",
+  "description": "Telemetry backend for the ServicePulse Android and desktop apps",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test/"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "author": "ServicePulse",
+  "license": "MIT"
+}
