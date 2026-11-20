@@ -1,1 +1,40 @@
-{"name": "servicepulse-desktop", "productName": "ServicePulse", "version": "1.0.0", "description": "ServicePulse - system services monitor for Windows desktop (Electron)", "main": "main.js", "author": "ServicePulse", "license": "MIT", "scripts": {"sync": "node ../scripts/sync-web.js", "start": "node ../scripts/sync-web.js && electron .", "dist": "node ../scripts/sync-web.js && electron-builder --win", "test": "node ../scripts/sync-web.js && electron ."}, "dependencies": {"systeminformation": "^5.23.0"}, "devDependencies": {"electron": "^45.3.2", "electron-builder": "^25.1.8"}, "build": {"appId": "com.servicepulse.app", "productName": "ServicePulse", "files": ["main.js", "preload.js", "app/**/*"], "directories": {"output": "dist"}, "win": {"target": ["nsis"], "artifactName": "ServicePulse-Setup-${version}.${ext}"}}}
+{
+  "name": "servicepulse-desktop",
+  "productName": "ServicePulse",
+  "version": "1.0.0",
+  "description": "ServicePulse - system services monitor for Windows desktop (Electron)",
+  "main": "main.js",
+  "author": "ServicePulse",
+  "license": "MIT",
+  "scripts": {
+    "sync": "node ../scripts/sync-web.js",
+    "start": "node ../scripts/sync-web.js && electron .",
+    "dist": "node ../scripts/sync-web.js && electron-builder --win",
+    "test": "node ../scripts/sync-web.js && electron ."
+  },
+  "dependencies": {
+    "systeminformation": "^5.23.0"
+  },
+  "devDependencies": {
+    "electron": "^45.3.2",
+    "electron-builder": "^26.18.0"
+  },
+  "build": {
+    "appId": "com.servicepulse.app",
+    "productName": "ServicePulse",
+    "files": [
+      "main.js",
+      "preload.js",
+      "app/**/*"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "artifactName": "ServicePulse-Setup-${version}.${ext}"
+    }
+  }
+}
