@@ -1,7 +1,0 @@
-<?xml version='1.0' encoding='utf-8'?>
-<resources>
-    <string name="app_name">ServicePulse NativeBridge</string>
-    <string name="title_activity_main">ServicePulse NativeBridge</string>
-    <string name="package_name">com.servicepulse.nativebridge</string>
-    <string name="custom_url_scheme">com.servicepulse.nativebridge</string>
-</resources>
