@@ -6,7 +6,7 @@ Zero-dependency Node.js server (`node server.js`, env `PORT` default 3210).
 ## Authentication
 
 Optional. Set `BACKEND_KEY=<secret>` when starting the server; clients must then send
-`X-API-Key: <secret>` on every request except `/health`.
+`X-API-Key: <secret>` on every request except `/health` and `/info`.
 
 ## Endpoints
 
@@ -14,6 +14,30 @@ Optional. Set `BACKEND_KEY=<secret>` when starting the server; clients must then
 
 ```json
 { "ok": true, "service": "servicepulse-backend", "version": "1.0.0", "uptimeS": 120, "devices": 2 }
+```
+
+### GET /api/v1/info
+
+Public discovery handshake: no API key required. Clients call this to confirm
+they reached ServicePulse and to learn whether a key will be needed.
+
+```json
+{
+  "service": "servicepulse-backend",
+  "version": "1.0.0",
+  "api": "/api/v1",
+  "name": "ServicePulse on studio",
+  "host": "studio",
+  "authRequired": true,
+  "discovery": {
+    "service": "_servicepulse._tcp.local",
+    "instance": "ServicePulse-on-studio._servicepulse._tcp.local",
+    "port": 3210,
+    "address": "192.168.1.42",
+    "host": "studio.local",
+    "txt": { "v": "1", "api": "/api/v1", "path": "/", "name": "ServicePulse on studio" }
+  }
+}
 ```
 
 ### POST /api/v1/telemetry
@@ -91,3 +115,29 @@ await CapacitorHttp.request({
   data: { ... }
 });
 ```
+
+
+## mDNS / DNS-SD advertisement
+
+The server announces itself on the LAN so clients can find it without a
+configured address (see `backend/mdns.js`):
+
+| Record | Value |
+|---|---|
+| PTR | `_servicepulse._tcp.local` → `<instance>._servicepulse._tcp.local` |
+| SRV | instance → `<hostname>.local:<PORT>` |
+| TXT | `v=1`, `api=/api/v1`, `path=/`, `name=<instance>` |
+| A | `<hostname>.local` → LAN IPv4 |
+
+Environment variables:
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `MDNS` | `1` | set to `0` to disable advertisement |
+| `MDNS_NAME` | `ServicePulse on <hostname>` | instance name shown to clients |
+| `DATA_DIR` | `backend/data` | where telemetry is stored |
+| `BACKEND_KEY` | unset | enables `X-API-Key` authentication |
+| `PORT` | `3210` | HTTP port, also advertised over mDNS |
+
+Tested against the Android `NsdManager` browse → resolve → HTTP flow in
+`backend/test/discovery-flow.test.js`.

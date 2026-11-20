@@ -56,6 +56,10 @@ jobs:
             exit 1
           fi
 
+      - name: Run backend tests
+        working-directory: backend
+        run: node --test test/
+
       - name: Syntax-check shipped JavaScript
         run: |
           node --check app/app.js
@@ -63,10 +67,13 @@ jobs:
           node --check electron/preload.js
 
       - name: Build Android debug APK
-        env:
-          ANDROID_HOME: ${{ env.ANDROID_HOME }}
-        working-directory: android/android
-        run: ./gradlew assembleDebug --no-daemon
+        working-directory: android
+        # `cap sync` regenerates capacitor-cordova-android-plugins/ and copies
+        # www/ into the native project; both are gitignored, so a bare
+        # ./gradlew assembleDebug fails on a clean checkout.
+        run: |
+          npx cap sync android
+          cd android && ./gradlew assembleDebug --no-daemon
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4

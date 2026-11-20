@@ -6,6 +6,7 @@
  *
  * Endpoints (all under /api/v1):
  *   GET  /health                 -> { ok, uptimeS, devices }
+ *   GET  /info                   -> { service, version, api, name, host } (discovery)
  *   POST /telemetry              -> ingest a snapshot (see API.md)
  *   GET  /devices                -> registered devices + latest snapshot
  *   GET  /devices/:id/history    -> recent snapshots (?limit=N, max 500)
@@ -20,13 +21,17 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
+const { createResponder } = require('./mdns');
 
 const PORT = parseInt(process.env.PORT || '3210', 10);
 const API_KEY = process.env.BACKEND_KEY || '';
 const MAX_PER_DEVICE = 500;
-const DATA_DIR = path.join(__dirname, 'data');
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const DATA_FILE = path.join(DATA_DIR, 'telemetry.json');
 const PUBLIC_DIR = path.join(__dirname, 'public');
+const MDNS_ENABLED = process.env.MDNS !== '0';
+const SERVICE_NAME = process.env.MDNS_NAME || `ServicePulse on ${(os.hostname() || 'host').split('.')[0]}`;
 
 /* ---------------- storage ---------------- */
 
@@ -140,7 +145,20 @@ const server = http.createServer((req, res) => {
         service: 'servicepulse-backend',
         version: '1.0.0',
         uptimeS: Math.round(process.uptime()),
-        devices: Object.keys(store.devices).length
+        devices: Object.keys(store.devices).length,
+        discovery: responder ? { service: responder.info().service, port: responder.info().port } : null
+      });
+    }
+
+    if (route === 'info' && req.method === 'GET') {
+      return send(res, 200, {
+        service: 'servicepulse-backend',
+        version: '1.0.0',
+        api: '/api/v1',
+        name: SERVICE_NAME,
+        host: os.hostname(),
+        discovery: responder ? responder.info() : { disabled: true },
+        authRequired: Boolean(API_KEY)
       });
     }
 
@@ -204,6 +222,33 @@ const server = http.createServer((req, res) => {
 });
 
 loadStore();
+
+let responder = null;
+
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`ServicePulse backend listening on :${PORT} (auth ${API_KEY ? 'enabled' : 'open'})`);
+
+  if (!MDNS_ENABLED) {
+    console.log('mDNS advertisement disabled (MDNS=0)');
+    return;
+  }
+  responder = createResponder({ port: PORT, instance: SERVICE_NAME });
+  responder
+    .start()
+    .then((info) => {
+      console.log(`mDNS: advertising ${info.service} as "${info.instance}"`);
+      console.log(`mDNS: ${info.host} -> ${info.address}:${info.port}`);
+    })
+    .catch((err) => {
+      responder = null;
+      console.error('mDNS advertisement failed:', err.message);
+    });
 });
+
+function shutdown() {
+  if (responder) responder.stop();
+  server.close(() => process.exit(0));
+  setTimeout(() => process.exit(0), 2000).unref();
+}
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);
