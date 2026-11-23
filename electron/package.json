@@ -13,7 +13,7 @@
     "test": "node ../scripts/sync-web.js && electron ."
   },
   "dependencies": {
-    "systeminformation": "^5.23.0"
+    "systeminformation": "^5.33.23"
   },
   "devDependencies": {
     "electron": "^45.3.2",
